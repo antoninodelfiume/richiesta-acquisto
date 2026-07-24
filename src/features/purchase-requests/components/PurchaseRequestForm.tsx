@@ -18,6 +18,7 @@ import {
 type PurchaseRequestFormProps = {
   service: PurchaseRequestService;
 };
+import InputAdornment from "@mui/material/InputAdornment";
 
 const placeholderSx = {
   mt: 2.5,
@@ -31,6 +32,16 @@ const placeholderSx = {
   color: "text.secondary",
   textAlign: "center",
   px: 2,
+};
+
+const fieldGridSx = {
+  display: "grid",
+  gridTemplateColumns: {
+    xs: "1fr",
+    md: "repeat(2, minmax(0, 1fr))",
+  },
+  gap: 2.5,
+  mt: 2.5,
 };
 
 export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
@@ -87,30 +98,86 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
         <Typography id="request-data-heading" component="h3" variant="h3">
           Dati della richiesta
         </Typography>
-        <TextField
-          id="purchase-title"
-          name="title"
-          label="Titolo della richiesta"
-          required
-          value={values.title}
-          onChange={(event) => updateValue("title", event.target.value)}
-        />
+        <Box sx={fieldGridSx}>
+          <TextField
+            id="purchase-title"
+            name="title"
+            label="Titolo della richiesta"
+            required
+            value={values.title}
+            onChange={(event) => updateValue("title", event.target.value)}
+            sx={{ gridColumn: { md: "1 / -1" } }}
+          />
 
+          <TextField
+            id="purchase-category"
+            name="category"
+            select
+            label="Categoria"
+            required
+            value={values.category}
+            onChange={(event) => updateValue("category", event.target.value)}
+          >
+            {purchaseCategories.map((category) => (
+              <MenuItem key={category.value} value={category.value}>
+                {category.label}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            id="purchase-cost-center"
+            name="costCenter"
+            label="Centro di costo"
+            required
+            value={values.costCenter}
+            onChange={(event) => updateValue("costCenter", event.target.value)}
+            autoComplete="off"
+          />
+        </Box>
+        <Box sx={fieldGridSx}>
+          <TextField
+            id="purchase-amount"
+            name="amount"
+            label="Importo"
+            required
+            value={values.amount}
+            onChange={(event) => updateValue("amount", event.target.value)}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">€</InputAdornment>
+                ),
+              },
+              htmlInput: { inputMode: "decimal" },
+            }}
+          />
+
+          <TextField
+            id="purchase-needed-by"
+            name="neededBy"
+            label="Data necessaria"
+            type="date"
+            required
+            value={values.neededBy}
+            onChange={(event) => updateValue("neededBy", event.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+        </Box>
         <TextField
-          id="purchase-category"
-          name="category"
-          select
-          label="Categoria"
-          required
-          value={values.category}
-          onChange={(event) => updateValue("category", event.target.value)}
-        >
-          {purchaseCategories.map((category) => (
-            <MenuItem key={category.value} value={category.value}>
-              {category.label}
-            </MenuItem>
-          ))}
-        </TextField>
+          id="purchase-justification"
+          name="justification"
+          label="Motivazione della spesa"
+          value={values.justification}
+          onChange={(event) => updateValue("justification", event.target.value)}
+          multiline
+          minRows={4}
+          helperText={
+            String(values.justification.length) +
+            "/500 caratteri. Obbligatoria sopra 5.000 euro."
+          }
+          sx={{ mt: 2.5 }}
+        />
       </Box>
 
       <Divider />
