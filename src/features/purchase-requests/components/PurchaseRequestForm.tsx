@@ -36,6 +36,7 @@ import {
   validateField,
   validatePurchaseRequest,
 } from "../purchaseRequest.validation";
+import { Alert } from "@mui/material";
 
 const placeholderSx = {
   mt: 2.5,
@@ -120,6 +121,14 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
       ...currentErrors,
       [field]: validateField(field, values),
     }));
+  }
+
+  function resetForm() {
+    setValues(initialPurchaseRequestValues);
+    setErrors(initialPurchaseRequestErrors);
+    setTouched(initialPurchaseRequestTouched);
+    setSubmitState({ status: "idle" });
+    window.setTimeout(() => titleRef.current?.focus(), 0);
   }
 
   const parsedAmount = parsePurchaseRequestAmount(values.amount);
@@ -225,6 +234,27 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
         overflow: "hidden",
       }}
     >
+      <Stack spacing={2} sx={{ mt: 3 }}>
+        {submitState.status === "invalid" && (
+          <Alert severity="error" role="alert">
+            Controlla i campi evidenziati. Il focus è stato spostato sul primo
+            errore.
+          </Alert>
+        )}
+
+        {submitState.status === "error" && (
+          <Alert severity="error" role="alert">
+            {submitState.message}
+          </Alert>
+        )}
+
+        {submitState.status === "success" && (
+          <Alert severity="success" role="status">
+            Richiesta inviata. Codice: <strong>{submitState.requestId}</strong>
+          </Alert>
+        )}
+      </Stack>
+
       <Box sx={{ p: { xs: 2.5, sm: 4 } }}>
         <Typography component="h2" variant="h2">
           Dettagli della richiesta
@@ -389,17 +419,25 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
         spacing={1.5}
         sx={{ justifyContent: "flex-end", p: { xs: 2.5, sm: 4 } }}
       >
-        <Button type="button" variant="outlined" disabled>
-          Azzera
-        </Button>
-        <Button
-          type="submit"
-          variant="contained"
-          loading={isSubmitting}
-          loadingPosition="center"
-        >
-          Invia richiesta
-        </Button>
+        {isComplete ? (
+          <Button type="button" variant="contained" onClick={resetForm}>
+            Nuova richiesta
+          </Button>
+        ) : (
+          <>
+            <Button
+              type="button"
+              variant="outlined"
+              onClick={resetForm}
+              disabled={isSubmitting}
+            >
+              Azzera
+            </Button>
+            <Button type="submit" variant="contained" loading={isSubmitting}>
+              Invia richiesta
+            </Button>
+          </>
+        )}
       </Stack>
     </Paper>
   );
