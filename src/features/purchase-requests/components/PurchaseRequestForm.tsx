@@ -7,7 +7,10 @@ import Typography from "@mui/material/Typography";
 import type { PurchaseRequestService } from "../purchaseRequest.service";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
-import { useState, SubmitEvent } from "react";
+import { useState, SubmitEvent, type RefObject, useRef } from "react";
+import Alert from "@mui/material/Alert";
+import { parsePurchaseRequestAmount } from "../purchaseRequest.validation";
+
 type PurchaseRequestFormProps = {
   service: PurchaseRequestService;
 };
@@ -55,6 +58,24 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
   void service;
   const [errors, setErrors] = useState(initialPurchaseRequestErrors);
   const [touched, setTouched] = useState(initialPurchaseRequestTouched);
+  const [hasInvalidSubmit, setHasInvalidSubmit] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const categoryRef = useRef<HTMLInputElement>(null);
+  const costCenterRef = useRef<HTMLInputElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
+  const neededByRef = useRef<HTMLInputElement>(null);
+  const justificationRef = useRef<HTMLInputElement>(null);
+  const fieldRefs: Record<
+    PurchaseRequestField,
+    RefObject<HTMLInputElement | null>
+  > = {
+    title: titleRef,
+    category: categoryRef,
+    costCenter: costCenterRef,
+    amount: amountRef,
+    neededBy: neededByRef,
+    justification: justificationRef,
+  };
   const [values, setValues] = useState<PurchaseRequestValues>(
     initialPurchaseRequestValues,
   );
@@ -95,20 +116,57 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
     }));
   }
 
+  const parsedAmount = parsePurchaseRequestAmount(values.amount);
+  const isJustificationRequired = parsedAmount !== null && parsedAmount > 5_000;
+
+  const defaultHelperText: Record<PurchaseRequestField, string> = {
+    title: "Da 5 a 80 caratteri.",
+    category: "Scegli la tipologia più vicina alla spesa.",
+    costCenter: "Formato richiesto: CC-1234.",
+    amount: "Usa la virgola o il punto per i centesimi.",
+    neededBy: "Indica quando la fornitura deve essere disponibile.",
+    justification: "Obbligatoria sopra 5.000 euro.",
+  };
+
+  const fieldError = (field: PurchaseRequestField) =>
+    touched[field] && errors[field] !== "";
+
+  function helperTextFor(field: PurchaseRequestField) {
+    if (fieldError(field)) {
+      return errors[field];
+    }
+
+    if (field === "justification") {
+      return (
+        String(values.justification.length) +
+        "/500 caratteri. " +
+        defaultHelperText.justification
+      );
+    }
+
+    return defaultHelperText[field];
+  }
+
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextErrors = validatePurchaseRequest(values);
     setTouched(allFieldsTouched);
     setErrors(nextErrors);
 
-    if (purchaseRequestFieldOrder.some((field) => nextErrors[field] !== "")) {
+    const firstInvalidField = purchaseRequestFieldOrder.find(
+      (field) => nextErrors[field] !== "",
+    );
+
+    if (firstInvalidField) {
+      setHasInvalidSubmit(true);
+      // L'ordine condiviso mantiene focus e layout coerenti.
+      fieldRefs[firstInvalidField].current?.focus();
       return;
     }
 
-    // Il servizio verrà collegato nel TODO 08.
+    setHasInvalidSubmit(false);
   }
 
-  // TODO 06: collega errori, helper text, ref e focus sul primo errore.
   // TODO 08: implementa il submit asincrono con loading e submitLockRef.
   // TODO 09: gestisci errore, successo, retry e reset.
 
@@ -125,6 +183,12 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
         overflow: "hidden",
       }}
     >
+      {hasInvalidSubmit && (
+        <Alert severity="error" role="alert">
+          Controlla i campi evidenziati. Il focus è stato spostato sul primo
+          errore.
+        </Alert>
+      )}
       <Box sx={{ p: { xs: 2.5, sm: 4 } }}>
         <Typography component="h2" variant="h2">
           Dettagli della richiesta
@@ -152,8 +216,11 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
             required
             value={values.title}
             onChange={(event) => updateValue("title", event.target.value)}
-            onBlur={() => handleBlur('title')}
+            onBlur={() => handleBlur("title")}
             sx={{ gridColumn: { md: "1 / -1" } }}
+            error={fieldError("title")}
+            helperText={helperTextFor("title")}
+            inputRef={titleRef}
           />
 
           <TextField
@@ -164,7 +231,10 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
             required
             value={values.category}
             onChange={(event) => updateValue("category", event.target.value)}
-            onBlur={() => handleBlur('category')}
+            onBlur={() => handleBlur("category")}
+            error={fieldError("category")}
+            helperText={helperTextFor("category")}
+            inputRef={titleRef}
           >
             {purchaseCategories.map((category) => (
               <MenuItem key={category.value} value={category.value}>
@@ -181,7 +251,10 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
             value={values.costCenter}
             onChange={(event) => updateValue("costCenter", event.target.value)}
             autoComplete="off"
-            onBlur={() => handleBlur('costCenter')}
+            onBlur={() => handleBlur("costCenter")}
+            error={fieldError("costCenter")}
+            helperText={helperTextFor("costCenter")}
+            inputRef={costCenterRef}
           />
         </Box>
         <Box sx={fieldGridSx}>
@@ -192,7 +265,10 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
             required
             value={values.amount}
             onChange={(event) => updateValue("amount", event.target.value)}
-            onBlur={() => handleBlur('amount')}
+            onBlur={() => handleBlur("amount")}
+            error={fieldError("amount")}
+            helperText={helperTextFor("amount")}
+            inputRef={amountRef}
             slotProps={{
               input: {
                 startAdornment: (
@@ -211,8 +287,11 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
             required
             value={values.neededBy}
             onChange={(event) => updateValue("neededBy", event.target.value)}
-            onBlur={() => handleBlur('neededBy')}
+            onBlur={() => handleBlur("neededBy")}
             slotProps={{ inputLabel: { shrink: true } }}
+            error={fieldError("neededBy")}
+            helperText={helperTextFor("neededBy")}
+            inputRef={neededByRef}
           />
         </Box>
         <TextField
@@ -221,13 +300,13 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
           label="Motivazione della spesa"
           value={values.justification}
           onChange={(event) => updateValue("justification", event.target.value)}
-          onBlur={() => handleBlur('justification')}
+          onBlur={() => handleBlur("justification")}
           multiline
           minRows={4}
-          helperText={
-            String(values.justification.length) +
-            "/500 caratteri. Obbligatoria sopra 5.000 euro."
-          }
+          required={isJustificationRequired}
+          error={fieldError("justification")}
+          helperText={helperTextFor("justification")}
+          inputRef={justificationRef}
           sx={{ mt: 2.5 }}
         />
       </Box>
