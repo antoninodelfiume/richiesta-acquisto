@@ -8,12 +8,19 @@ import type { PurchaseRequestService } from "../purchaseRequest.service";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import { useState, SubmitEvent, type RefObject, useRef } from "react";
-import Alert from "@mui/material/Alert";
 import { parsePurchaseRequestAmount } from "../purchaseRequest.validation";
+import { toPurchaseRequestPayload } from "../purchaseRequest.service";
 
 type PurchaseRequestFormProps = {
   service: PurchaseRequestService;
 };
+type SubmitState =
+  | { status: "idle" }
+  | { status: "invalid" }
+  | { status: "submitting" }
+  | { status: "error"; message: string }
+  | { status: "success"; requestId: string };
+
 import InputAdornment from "@mui/material/InputAdornment";
 import {
   initialPurchaseRequestErrors,
@@ -58,7 +65,6 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
   void service;
   const [errors, setErrors] = useState(initialPurchaseRequestErrors);
   const [touched, setTouched] = useState(initialPurchaseRequestTouched);
-  const [hasInvalidSubmit, setHasInvalidSubmit] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLInputElement>(null);
   const costCenterRef = useRef<HTMLInputElement>(null);
@@ -147,8 +153,14 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
     return defaultHelperText[field];
   }
 
-  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    // La ref cambia nello stesso evento, prima che React esegua un nuovo render.
+    if (submitLockRef.current) {
+      return;
+    }
+
     const nextErrors = validatePurchaseRequest(values);
     setTouched(allFieldsTouched);
     setErrors(nextErrors);
@@ -158,16 +170,46 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
     );
 
     if (firstInvalidField) {
-      setHasInvalidSubmit(true);
-      // L'ordine condiviso mantiene focus e layout coerenti.
+      setSubmitState({ status: "invalid" });
       fieldRefs[firstInvalidField].current?.focus();
       return;
     }
 
-    setHasInvalidSubmit(false);
+    submitLockRef.current = true;
+    setSubmitState({ status: "submitting" });
+
+    try {
+      const payload = toPurchaseRequestPayload(values);
+      const receipt = await service.submit(payload);
+      setSubmitState({
+        status: "success",
+        requestId: receipt.requestId,
+      });
+    } catch {
+      setSubmitState({
+        status: "error",
+        message:
+          "Non è stato possibile inviare la richiesta. " +
+          "I dati sono ancora disponibili: riprova.",
+      });
+    } finally {
+      submitLockRef.current = false;
+    }
   }
 
-  // TODO 08: implementa il submit asincrono con loading e submitLockRef.
+  const [submitState, setSubmitState] = useState<SubmitState>({
+    status: "idle",
+  });
+  const submitLockRef = useRef(false);
+  const isSubmitting = submitState.status === "submitting";
+  const isComplete = submitState.status === "success";
+  const controlsDisabled = isSubmitting || isComplete;
+
+  // Aggiungi queste righe alla fine di updateValue.
+  if (submitState.status === "invalid") {
+    setSubmitState({ status: "idle" });
+  }
+
   // TODO 09: gestisci errore, successo, retry e reset.
 
   return (
@@ -183,12 +225,6 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
         overflow: "hidden",
       }}
     >
-      {hasInvalidSubmit && (
-        <Alert severity="error" role="alert">
-          Controlla i campi evidenziati. Il focus è stato spostato sul primo
-          errore.
-        </Alert>
-      )}
       <Box sx={{ p: { xs: 2.5, sm: 4 } }}>
         <Typography component="h2" variant="h2">
           Dettagli della richiesta
@@ -235,6 +271,7 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
             error={fieldError("category")}
             helperText={helperTextFor("category")}
             inputRef={titleRef}
+            disabled={controlsDisabled}
           >
             {purchaseCategories.map((category) => (
               <MenuItem key={category.value} value={category.value}>
@@ -255,6 +292,7 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
             error={fieldError("costCenter")}
             helperText={helperTextFor("costCenter")}
             inputRef={costCenterRef}
+            disabled={controlsDisabled}
           />
         </Box>
         <Box sx={fieldGridSx}>
@@ -277,6 +315,7 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
               },
               htmlInput: { inputMode: "decimal" },
             }}
+            disabled={controlsDisabled}
           />
 
           <TextField
@@ -292,6 +331,7 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
             error={fieldError("neededBy")}
             helperText={helperTextFor("neededBy")}
             inputRef={neededByRef}
+            disabled={controlsDisabled}
           />
         </Box>
         <TextField
@@ -308,6 +348,7 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
           helperText={helperTextFor("justification")}
           inputRef={justificationRef}
           sx={{ mt: 2.5 }}
+          disabled={controlsDisabled}
         />
       </Box>
 
@@ -351,7 +392,12 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
         <Button type="button" variant="outlined" disabled>
           Azzera
         </Button>
-        <Button type="submit" variant="contained">
+        <Button
+          type="submit"
+          variant="contained"
+          loading={isSubmitting}
+          loadingPosition="center"
+        >
           Invia richiesta
         </Button>
       </Stack>
