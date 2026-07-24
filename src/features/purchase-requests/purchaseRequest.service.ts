@@ -1,3 +1,7 @@
+import {
+  normalizePurchaseRequestText,
+  parsePurchaseRequestAmount,
+} from './purchaseRequest.validation';
 import type {
   PurchaseRequestPayload,
   PurchaseRequestReceipt,
@@ -7,26 +11,60 @@ import type {
 export interface PurchaseRequestService {
   submit(payload: PurchaseRequestPayload): Promise<PurchaseRequestReceipt>;
 }
+export interface PurchaseRequestService {
+  submit(
+    payload: PurchaseRequestPayload,
+  ): Promise<PurchaseRequestReceipt>;
+}
 
-// TODO 07: normalizza i valori e implementa il servizio simulato iniettabile.
 export function toPurchaseRequestPayload(
   values: PurchaseRequestValues,
 ): PurchaseRequestPayload {
-  if (values.category === '') {
-    throw new Error('Completa la categoria prima di creare il payload.');
+  const amount = parsePurchaseRequestAmount(values.amount);
+
+  if (values.category === '' || amount === null) {
+    throw new Error(
+      'I valori devono essere validati prima di creare il payload.',
+    );
   }
 
   return {
-    ...values,
+    title: normalizePurchaseRequestText(values.title),
     category: values.category,
-    amount: Number(values.amount),
+    costCenter: values.costCenter.trim().toUpperCase(),
+    amount,
+    neededBy: values.neededBy,
+    justification: normalizePurchaseRequestText(values.justification),
   };
 }
 
-export function createSimulatedPurchaseRequestService(): PurchaseRequestService {
+type SimulatedServiceOptions = {
+  delayMs?: number;
+  failFirst?: boolean;
+};
+
+export function createSimulatedPurchaseRequestService({
+  delayMs = 700,
+  failFirst = false,
+}: SimulatedServiceOptions = {}): PurchaseRequestService {
+  let shouldFail = failFirst;
+  let nextRequestNumber = 1042;
+
   return {
     async submit() {
-      return { requestId: 'REQ-DEMO' };
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, delayMs);
+      });
+
+      if (shouldFail) {
+        shouldFail = false;
+        throw new Error('Servizio temporaneamente non disponibile.');
+      }
+
+      const requestId =
+        'REQ-' + String(nextRequestNumber).padStart(4, '0');
+      nextRequestNumber += 1;
+      return { requestId };
     },
   };
 }
