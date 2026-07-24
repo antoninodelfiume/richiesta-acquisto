@@ -1,12 +1,20 @@
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import type { FormEvent } from 'react';
-import type { PurchaseRequestService } from '../purchaseRequest.service';
-
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import type { SubmitEvent } from "react";
+import type { PurchaseRequestService } from "../purchaseRequest.service";
+import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
+import { useState } from "react";
+import {
+  initialPurchaseRequestValues,
+  purchaseCategories,
+  type PurchaseRequestField,
+  type PurchaseRequestValues,
+} from "../purchaseRequest.types";
 type PurchaseRequestFormProps = {
   service: PurchaseRequestService;
 };
@@ -14,27 +22,36 @@ type PurchaseRequestFormProps = {
 const placeholderSx = {
   mt: 2.5,
   minHeight: 96,
-  display: 'grid',
-  placeItems: 'center',
-  border: '1px dashed',
-  borderColor: 'divider',
+  display: "grid",
+  placeItems: "center",
+  border: "1px dashed",
+  borderColor: "divider",
   borderRadius: 1,
-  bgcolor: '#F8FAFC',
-  color: 'text.secondary',
-  textAlign: 'center',
+  bgcolor: "#F8FAFC",
+  color: "text.secondary",
+  textAlign: "center",
   px: 2,
 };
 
 export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
   void service;
+  const [values, setValues] = useState<PurchaseRequestValues>(
+    initialPurchaseRequestValues,
+  );
 
+  function updateValue(field: PurchaseRequestField, value: string) {
+    setValues((currentValues) => ({
+      ...currentValues,
+      [field]: value,
+    }));
+  }
   // TODO 02: aggiungi useState, updateValue, titolo e categoria controllati.
   // TODO 03: completa i campi e disponili nella griglia responsive.
   // TODO 05: valida al blur e rivalida i campi touched durante la modifica.
   // TODO 06: collega errori, helper text, ref e focus sul primo errore.
   // TODO 08: implementa il submit asincrono con loading e submitLockRef.
   // TODO 09: gestisci errore, successo, retry e reset.
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
   }
 
@@ -46,9 +63,9 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
       onSubmit={handleSubmit}
       elevation={0}
       sx={{
-        border: '1px solid',
-        borderColor: 'divider',
-        overflow: 'hidden',
+        border: "1px solid",
+        borderColor: "divider",
+        overflow: "hidden",
       }}
     >
       <Box sx={{ p: { xs: 2.5, sm: 4 } }}>
@@ -70,9 +87,30 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
         <Typography id="request-data-heading" component="h3" variant="h3">
           Dati della richiesta
         </Typography>
-        <Box sx={placeholderSx}>
-          Titolo, categoria e centro di costo entreranno nei passaggi 02 e 03.
-        </Box>
+        <TextField
+          id="purchase-title"
+          name="title"
+          label="Titolo della richiesta"
+          required
+          value={values.title}
+          onChange={(event) => updateValue("title", event.target.value)}
+        />
+
+        <TextField
+          id="purchase-category"
+          name="category"
+          select
+          label="Categoria"
+          required
+          value={values.category}
+          onChange={(event) => updateValue("category", event.target.value)}
+        >
+          {purchaseCategories.map((category) => (
+            <MenuItem key={category.value} value={category.value}>
+              {category.label}
+            </MenuItem>
+          ))}
+        </TextField>
       </Box>
 
       <Divider />
@@ -108,9 +146,9 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
       <Divider />
 
       <Stack
-        direction={{ xs: 'column', sm: 'row' }}
+        direction={{ xs: "column", sm: "row" }}
         spacing={1.5}
-        sx={{ justifyContent: 'flex-end', p: { xs: 2.5, sm: 4 } }}
+        sx={{ justifyContent: "flex-end", p: { xs: 2.5, sm: 4 } }}
       >
         <Button type="button" variant="outlined" disabled>
           Azzera
