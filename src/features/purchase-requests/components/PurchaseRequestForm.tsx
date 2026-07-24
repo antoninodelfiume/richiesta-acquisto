@@ -110,6 +110,9 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
           : {}),
       }));
     }
+    if (submitState.status === "invalid") {
+      setSubmitState({ status: "idle" });
+    }
   }
 
   function handleBlur(field: PurchaseRequestField) {
@@ -213,13 +216,6 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
   const isSubmitting = submitState.status === "submitting";
   const isComplete = submitState.status === "success";
   const controlsDisabled = isSubmitting || isComplete;
-
-  // Aggiungi queste righe alla fine di updateValue.
-  if (submitState.status === "invalid") {
-    setSubmitState({ status: "idle" });
-  }
-
-  // TODO 09: gestisci errore, successo, retry e reset.
 
   return (
     <Paper
