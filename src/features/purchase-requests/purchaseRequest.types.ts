@@ -1,5 +1,4 @@
-// TODO 01: restringi la categoria e completa i contratti della feature.
-export type PurchaseCategory = string;
+export type PurchaseCategory = 'hardware' | 'software' | 'services';
 
 export type PurchaseRequestValues = {
   title: string;
@@ -21,19 +20,24 @@ export type PurchaseRequestPayload = {
   justification: string;
 };
 
-export type PurchaseRequestReceipt = {
-  requestId: string;
-};
-
+export type PurchaseRequestReceipt = { requestId: string };
 export type PurchaseRequestErrors = Record<PurchaseRequestField, string>;
 export type PurchaseRequestTouched = Record<PurchaseRequestField, boolean>;
 
-export const purchaseCategories: ReadonlyArray<{
-  value: PurchaseCategory;
-  label: string;
-}> = [];
+export const purchaseCategories = [
+  { value: 'hardware', label: 'Hardware' },
+  { value: 'software', label: 'Software' },
+  { value: 'services', label: 'Servizi professionali' },
+] satisfies ReadonlyArray<{ value: PurchaseCategory; label: string }>;
 
-export const purchaseRequestFieldOrder: PurchaseRequestField[] = [];
+export const purchaseRequestFieldOrder: PurchaseRequestField[] = [
+  'title',
+  'category',
+  'costCenter',
+  'amount',
+  'neededBy',
+  'justification',
+];
 
 export const initialPurchaseRequestValues: PurchaseRequestValues = {
   title: '',
