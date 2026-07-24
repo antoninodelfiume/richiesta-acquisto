@@ -4,21 +4,28 @@ import Divider from "@mui/material/Divider";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import type { SubmitEvent } from "react";
 import type { PurchaseRequestService } from "../purchaseRequest.service";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
-import { useState } from "react";
-import {
-  initialPurchaseRequestValues,
-  purchaseCategories,
-  type PurchaseRequestField,
-  type PurchaseRequestValues,
-} from "../purchaseRequest.types";
+import { useState, SubmitEvent } from "react";
 type PurchaseRequestFormProps = {
   service: PurchaseRequestService;
 };
 import InputAdornment from "@mui/material/InputAdornment";
+import {
+  initialPurchaseRequestErrors,
+  initialPurchaseRequestTouched,
+  initialPurchaseRequestValues,
+  purchaseRequestFieldOrder,
+  purchaseCategories,
+  type PurchaseRequestField,
+  type PurchaseRequestTouched,
+  type PurchaseRequestValues,
+} from "../purchaseRequest.types";
+import {
+  validateField,
+  validatePurchaseRequest,
+} from "../purchaseRequest.validation";
 
 const placeholderSx = {
   mt: 2.5,
@@ -46,25 +53,64 @@ const fieldGridSx = {
 
 export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
   void service;
+  const [errors, setErrors] = useState(initialPurchaseRequestErrors);
+  const [touched, setTouched] = useState(initialPurchaseRequestTouched);
   const [values, setValues] = useState<PurchaseRequestValues>(
     initialPurchaseRequestValues,
   );
+  const allFieldsTouched: PurchaseRequestTouched = {
+    title: true,
+    category: true,
+    costCenter: true,
+    amount: true,
+    neededBy: true,
+    justification: true,
+  };
 
   function updateValue(field: PurchaseRequestField, value: string) {
-    setValues((currentValues) => ({
-      ...currentValues,
-      [field]: value,
+    const nextValues = { ...values, [field]: value } as PurchaseRequestValues;
+    setValues(nextValues);
+
+    if (touched[field] || (field === "amount" && touched.justification)) {
+      setErrors((currentErrors) => ({
+        ...currentErrors,
+        ...(touched[field]
+          ? { [field]: validateField(field, nextValues) }
+          : {}),
+        ...(field === "amount" && touched.justification
+          ? { justification: validateField("justification", nextValues) }
+          : {}),
+      }));
+    }
+  }
+
+  function handleBlur(field: PurchaseRequestField) {
+    setTouched((currentTouched) => ({
+      ...currentTouched,
+      [field]: true,
+    }));
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      [field]: validateField(field, values),
     }));
   }
-  // TODO 02: aggiungi useState, updateValue, titolo e categoria controllati.
-  // TODO 03: completa i campi e disponili nella griglia responsive.
-  // TODO 05: valida al blur e rivalida i campi touched durante la modifica.
+
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextErrors = validatePurchaseRequest(values);
+    setTouched(allFieldsTouched);
+    setErrors(nextErrors);
+
+    if (purchaseRequestFieldOrder.some((field) => nextErrors[field] !== "")) {
+      return;
+    }
+
+    // Il servizio verrà collegato nel TODO 08.
+  }
+
   // TODO 06: collega errori, helper text, ref e focus sul primo errore.
   // TODO 08: implementa il submit asincrono con loading e submitLockRef.
   // TODO 09: gestisci errore, successo, retry e reset.
-  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-  }
 
   return (
     <Paper
@@ -106,6 +152,7 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
             required
             value={values.title}
             onChange={(event) => updateValue("title", event.target.value)}
+            onBlur={() => handleBlur('title')}
             sx={{ gridColumn: { md: "1 / -1" } }}
           />
 
@@ -117,6 +164,7 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
             required
             value={values.category}
             onChange={(event) => updateValue("category", event.target.value)}
+            onBlur={() => handleBlur('category')}
           >
             {purchaseCategories.map((category) => (
               <MenuItem key={category.value} value={category.value}>
@@ -133,6 +181,7 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
             value={values.costCenter}
             onChange={(event) => updateValue("costCenter", event.target.value)}
             autoComplete="off"
+            onBlur={() => handleBlur('costCenter')}
           />
         </Box>
         <Box sx={fieldGridSx}>
@@ -143,6 +192,7 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
             required
             value={values.amount}
             onChange={(event) => updateValue("amount", event.target.value)}
+            onBlur={() => handleBlur('amount')}
             slotProps={{
               input: {
                 startAdornment: (
@@ -161,6 +211,7 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
             required
             value={values.neededBy}
             onChange={(event) => updateValue("neededBy", event.target.value)}
+            onBlur={() => handleBlur('neededBy')}
             slotProps={{ inputLabel: { shrink: true } }}
           />
         </Box>
@@ -170,6 +221,7 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
           label="Motivazione della spesa"
           value={values.justification}
           onChange={(event) => updateValue("justification", event.target.value)}
+          onBlur={() => handleBlur('justification')}
           multiline
           minRows={4}
           helperText={
@@ -220,7 +272,7 @@ export function PurchaseRequestForm({ service }: PurchaseRequestFormProps) {
         <Button type="button" variant="outlined" disabled>
           Azzera
         </Button>
-        <Button type="submit" variant="contained" disabled>
+        <Button type="submit" variant="contained">
           Invia richiesta
         </Button>
       </Stack>
